@@ -63,7 +63,10 @@ pub fn descriptor() -> PluginDescriptor {
                     key: SETTING_API_KEY.to_string(),
                     label: "API key".to_string(),
                     field_type: ConfigFieldType::Password,
-                    required: true,
+                    // Not `required`: Scryer validates required settings at
+                    // install, before the operator can enter one. A lookup
+                    // without a key answers `invalid_config` instead.
+                    required: false,
                     help_text: Some(
                         "Your OMDb API key, from https://www.omdbapi.com/apikey.aspx.".to_string(),
                     ),
