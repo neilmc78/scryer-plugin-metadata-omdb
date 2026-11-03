@@ -1,0 +1,38 @@
+[workspace]
+members = ["core", "tools/embed-descriptor"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+publish = false
+
+[workspace.dependencies]
+omdb-core = { path = "core" }
+# The SDK that carries the metadata-provider plugin family.
+scryer-plugin-sdk = { git = "https://github.com/neilmc78/scryer-overlays", branch = "main" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[package]
+name = "scryer-plugin-metadata-omdb"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+omdb-core.workspace = true
+scryer-plugin-sdk.workspace = true
+serde_json.workspace = true
+wit-bindgen = { version = "0.61", features = ["async"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
