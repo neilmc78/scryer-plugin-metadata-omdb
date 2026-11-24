@@ -25,7 +25,8 @@ concurrency:
 
 jobs:
   version:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    # Forks still build and test, but never release.
+    if: github.repository == 'neilmc78/scryer-plugin-metadata-omdb' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.release.outputs.tag }}
