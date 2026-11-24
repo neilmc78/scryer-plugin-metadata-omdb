@@ -1,23 +1,52 @@
 name: Release
 
+# Pull requests are tested and built. Every merge to main is also released
+# by neilmc78/release-on-merge: the next patch version by default, or the
+# next minor or major one when the pull request's title says [minor] or
+# [major]. The component is built from that release and attached to it.
+# Run this workflow by hand to release main without a merge.
+
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".github/**"
   pull_request:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Release tag to create, such as v0.1.0"
-        required: true
 
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'release' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  version:
+    # Forks still build and test, but never release.
+    if: github.repository == 'neilmc78/scryer-plugin-metadata-omdb' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: release
+        uses: neilmc78/release-on-merge@v1
+
   build:
+    needs: version
+    # Pull requests skip the version job; build them anyway.
+    if: ${{ !cancelled() && (needs.version.result == 'skipped' || needs.version.outputs.tag != '') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag || github.sha }}
 
       - name: Install the toolchain from rust-toolchain.toml
         run: rustup show active-toolchain || rustup toolchain install
@@ -33,12 +62,10 @@ jobs:
           name: scryer-plugin-metadata-omdb
           path: dist/scryer-plugin-metadata-omdb.wasm
 
-      - name: Publish the release
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+      # release-on-merge has already created the release, with its notes.
+      - name: Attach to the release
+        if: needs.version.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag || github.ref_name }}
-        run: |
-          # A manual run creates the tag on the commit it built.
-          gh release create "$TAG" dist/scryer-plugin-metadata-omdb.wasm \
-            --target "$GITHUB_SHA" --title "$TAG" --generate-notes
+          TAG: ${{ needs.version.outputs.tag }}
+        run: gh release upload "$TAG" dist/scryer-plugin-metadata-omdb.wasm --repo "$GITHUB_REPOSITORY" --clobber
